@@ -62,7 +62,12 @@ function measure(): number {
   return Math.round(tallest)
 }
 
-export function useBottomOverlayInset(): void {
+/**
+ * @param ready Re-measure when this flips. The nav only exists once the app
+ *   has loaded its data; measuring before that finds nothing to protect, and
+ *   the nav then appears inside `#root` where the body observer can't see it.
+ */
+export function useBottomOverlayInset(ready: boolean): void {
   useEffect(() => {
     const apply = () => {
       document.documentElement.style.setProperty('--bottom-overlay', `${measure()}px`)
@@ -70,18 +75,22 @@ export function useBottomOverlayInset(): void {
 
     apply()
 
-    // The badge is injected asynchronously by the edge, so it may not exist on
-    // first paint. Watch for it rather than guessing at a delay.
+    // Both halves arrive asynchronously and in either order: the badge is
+    // injected by the edge, the nav by React. Watch the body for the badge,
+    // and re-check on a short decaying schedule to catch whichever lands last.
     const observer = new MutationObserver(apply)
     observer.observe(document.body, { childList: true, subtree: false })
+
+    const timers = [100, 400, 1000, 2500].map((delay) => setTimeout(apply, delay))
 
     window.addEventListener('resize', apply)
     window.addEventListener('orientationchange', apply)
 
     return () => {
       observer.disconnect()
+      for (const timer of timers) clearTimeout(timer)
       window.removeEventListener('resize', apply)
       window.removeEventListener('orientationchange', apply)
     }
-  }, [])
+  }, [ready])
 }

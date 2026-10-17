@@ -42,7 +42,7 @@ export default function App() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [payingObligation, setPayingObligation] = useState<Obligation | null>(null)
 
-  useBottomOverlayInset()
+  useBottomOverlayInset(ready)
 
   useEffect(() => {
     void init()
