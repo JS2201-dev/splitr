@@ -3,6 +3,13 @@
 /* Class-based dark mode, toggled on <html> by useUiStore.applyTheme. */
 @custom-variant dark (&:where(.dark, .dark *));
 
+:root {
+  /* Height of any host-injected overlay pinned to the bottom edge (e.g. the
+     Netlify attribution badge). Measured at runtime by useBottomOverlayInset;
+     0 when nothing is there, which is the case locally and on a custom domain. */
+  --bottom-overlay: 0px;
+}
+
 @theme {
   --color-ink-50: #f8fafc;
   --color-ink-100: #f1f5f9;
@@ -120,6 +127,11 @@
   /* Respect the home-indicator / notch on iOS. */
   .safe-bottom {
     padding-bottom: max(env(safe-area-inset-bottom), 0.5rem);
+  }
+
+  /* Bottom-anchored chrome sits above any host-injected overlay. */
+  .above-overlay {
+    bottom: var(--bottom-overlay);
   }
   .safe-top {
     padding-top: max(env(safe-area-inset-top), 0.5rem);

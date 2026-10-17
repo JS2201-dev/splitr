@@ -15,6 +15,7 @@ import { BalancesTab } from '@/screens/BalancesTab'
 import { SettleTab } from '@/screens/SettleTab'
 import { SummaryTab } from '@/screens/SummaryTab'
 import { EmptyState, cx } from '@/components/ui'
+import { useBottomOverlayInset } from '@/lib/useBottomOverlayInset'
 
 const TABS: { key: TabKey; label: string; icon: string }[] = [
   { key: 'expenses', label: 'Expenses', icon: '🧾' },
@@ -40,6 +41,8 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [payingObligation, setPayingObligation] = useState<Obligation | null>(null)
+
+  useBottomOverlayInset()
 
   useEffect(() => {
     void init()
@@ -81,7 +84,7 @@ export default function App() {
   const openAddExpense = () => setExpenseSheet({ open: true })
 
   return (
-    <div className="min-h-dvh pb-32">
+    <div className="min-h-dvh" style={{ paddingBottom: 'calc(8rem + var(--bottom-overlay))' }}>
       {/* Header */}
       <header className="no-print sticky top-0 z-30 safe-top border-b border-ink-200 bg-ink-50/80 backdrop-blur-lg dark:border-ink-800 dark:bg-ink-950/80">
         <div className="mx-auto flex max-w-2xl items-center gap-2 px-4 py-2">
@@ -201,7 +204,8 @@ export default function App() {
       {/* Floating add button — bottom-right, above the tab bar, thumb-reachable. */}
       <button
         onClick={openAddExpense}
-        className="no-print fixed bottom-24 right-4 z-30 flex size-14 items-center justify-center rounded-full bg-blue-600 text-white shadow-lg shadow-blue-600/30 transition active:scale-90"
+        style={{ bottom: 'calc(6rem + var(--bottom-overlay))' }}
+        className="no-print fixed right-4 z-30 flex size-14 items-center justify-center rounded-full bg-blue-600 text-white shadow-lg shadow-blue-600/30 transition active:scale-90"
         aria-label="Add expense"
       >
         <svg viewBox="0 0 24 24" className="size-7" fill="currentColor">
@@ -211,7 +215,10 @@ export default function App() {
 
       {/* Toast */}
       {toast && (
-        <div className="no-print fixed bottom-24 left-1/2 z-40 w-[min(92vw,26rem)] -translate-x-1/2 animate-toast-in">
+        <div
+          style={{ bottom: 'calc(6rem + var(--bottom-overlay))' }}
+          className="no-print fixed left-1/2 z-40 w-[min(92vw,26rem)] -translate-x-1/2 animate-toast-in"
+        >
           <div className="flex items-center gap-3 rounded-xl bg-ink-900 px-4 py-3 text-white shadow-xl dark:bg-ink-100 dark:text-ink-900">
             <span className="min-w-0 flex-1 text-sm font-medium">{toast.message}</span>
             {toast.action && (
@@ -230,7 +237,7 @@ export default function App() {
       )}
 
       {/* Bottom tabs */}
-      <nav className="no-print fixed bottom-0 left-0 right-0 z-30 safe-bottom border-t border-ink-200 bg-ink-50/90 backdrop-blur-lg dark:border-ink-800 dark:bg-ink-950/90">
+      <nav className="no-print above-overlay fixed left-0 right-0 z-30 safe-bottom border-t border-ink-200 bg-ink-50/90 backdrop-blur-lg dark:border-ink-800 dark:bg-ink-950/90">
         <div className="mx-auto flex max-w-2xl">
           {TABS.map((item) => (
             <button
