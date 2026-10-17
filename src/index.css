@@ -1,0 +1,236 @@
+@import 'tailwindcss';
+
+/* Class-based dark mode, toggled on <html> by useUiStore.applyTheme. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-ink-50: #f8fafc;
+  --color-ink-100: #f1f5f9;
+  --color-ink-200: #e2e8f0;
+  --color-ink-300: #cbd5e1;
+  --color-ink-400: #94a3b8;
+  --color-ink-500: #64748b;
+  --color-ink-600: #475569;
+  --color-ink-700: #334155;
+  --color-ink-800: #1e293b;
+  --color-ink-900: #0f172a;
+  --color-ink-950: #020617;
+
+  /* Owing is warm, being owed is cool. Used consistently across every view so
+     the colour alone tells you which direction the money goes. */
+  --color-owes-light: #be185d;
+  --color-owes-dark: #fb7185;
+  --color-gets-light: #0f766e;
+  --color-gets-dark: #2dd4bf;
+
+  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue',
+    sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+}
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-ink-50 text-ink-900 dark:bg-ink-950 dark:text-ink-100 font-sans antialiased;
+    /* Stop iOS rubber-banding the whole page behind the fixed tab bar. */
+    overscroll-behavior-y: none;
+  }
+
+  /* Never let iOS zoom on focus — inputs must stay at 16px or larger. */
+  input,
+  select,
+  textarea,
+  button {
+    font-size: max(16px, 1rem);
+  }
+
+  /* A visible focus ring for keyboard users, suppressed for pointer taps. */
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-blue-500;
+  }
+
+  ::selection {
+    @apply bg-blue-500/25;
+  }
+}
+
+/* `btn` is a @utility rather than a component class so the variants below can
+   @apply it — Tailwind v4 only lets @apply reference utilities. */
+@utility btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3
+         font-semibold transition active:scale-[0.97] disabled:opacity-40
+         disabled:active:scale-100 disabled:cursor-not-allowed;
+}
+
+@layer components {
+  /* Money is tabular so columns of figures line up and don't jitter as they
+     change — important on the Balances and Settle-up tabs. */
+  .tnum {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum';
+  }
+
+  .card {
+    @apply bg-white dark:bg-ink-900 border border-ink-200 dark:border-ink-800 rounded-2xl;
+  }
+
+  .pressable {
+    @apply transition active:scale-[0.98] active:opacity-80;
+  }
+
+  .input {
+    @apply w-full rounded-xl border border-ink-300 dark:border-ink-700
+           bg-white dark:bg-ink-900 px-3.5 py-3
+           text-ink-900 dark:text-ink-100
+           placeholder:text-ink-400 dark:placeholder:text-ink-500
+           focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none
+           disabled:opacity-50;
+  }
+
+  .label {
+    @apply block text-xs font-semibold uppercase tracking-wide text-ink-500 dark:text-ink-400 mb-1.5;
+  }
+
+  .btn-primary {
+    @apply btn bg-blue-600 text-white hover:bg-blue-700;
+  }
+
+  .btn-secondary {
+    @apply btn bg-ink-100 dark:bg-ink-800 text-ink-800 dark:text-ink-100
+           hover:bg-ink-200 dark:hover:bg-ink-700;
+  }
+
+  .btn-ghost {
+    @apply btn text-ink-600 dark:text-ink-300 hover:bg-ink-100 dark:hover:bg-ink-800;
+  }
+
+  .btn-danger {
+    @apply btn bg-rose-600 text-white hover:bg-rose-700;
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium
+           transition active:scale-95;
+  }
+
+  /* Respect the home-indicator / notch on iOS. */
+  .safe-bottom {
+    padding-bottom: max(env(safe-area-inset-bottom), 0.5rem);
+  }
+  .safe-top {
+    padding-top: max(env(safe-area-inset-top), 0.5rem);
+  }
+}
+
+@layer utilities {
+  @keyframes sheet-in {
+    from {
+      transform: translateY(100%);
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes toast-in {
+    from {
+      transform: translateY(1rem);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  .animate-sheet-in {
+    animation: sheet-in 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+  .animate-fade-in {
+    animation: fade-in 0.2s ease-out;
+  }
+  .animate-toast-in {
+    animation: toast-in 0.25s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-sheet-in,
+    .animate-fade-in,
+    .animate-toast-in {
+      animation: none;
+    }
+    .pressable,
+    .btn {
+      @apply active:scale-100;
+    }
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Print stylesheet.
+
+   The second of the two PDF paths: the Summary tab is laid out for A4 so the
+   browser's own "Save as PDF" produces a clean document. Everything
+   interactive is hidden, dark mode is forced off, and cards get real borders
+   rather than shadows.
+--------------------------------------------------------------------------- */
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  .card {
+    border: 1px solid #cbd5e1 !important;
+    background: #fff !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  h1,
+  h2,
+  h3 {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  main {
+    padding: 0 !important;
+    max-width: none !important;
+  }
+
+  a[href^='upi']::after {
+    content: ' (' attr(href) ')';
+    font-size: 9pt;
+    color: #475569;
+  }
+}
+
+.print-only {
+  display: none;
+}
