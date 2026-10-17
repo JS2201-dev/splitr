@@ -237,7 +237,7 @@ export default function App() {
       )}
 
       {/* Bottom tabs */}
-      <nav className="no-print above-overlay fixed left-0 right-0 z-30 safe-bottom border-t border-ink-200 bg-ink-50/90 backdrop-blur-lg dark:border-ink-800 dark:bg-ink-950/90">
+      <nav className="no-print nav-bottom fixed left-0 right-0 z-30 border-t border-ink-200 bg-ink-50/95 backdrop-blur-lg dark:border-ink-800 dark:bg-ink-950/95">
         <div className="mx-auto flex max-w-2xl">
           {TABS.map((item) => (
             <button

@@ -129,9 +129,15 @@
     padding-bottom: max(env(safe-area-inset-bottom), 0.5rem);
   }
 
-  /* Bottom-anchored chrome sits above any host-injected overlay. */
-  .above-overlay {
-    bottom: var(--bottom-overlay);
+  /*
+   * The tab bar stays pinned to the bottom edge and grows its padding instead
+   * of being lifted off it. Lifting leaves a gap that scrolling content shows
+   * through; padding keeps the bar's background covering the full strip while
+   * the tabs themselves sit above the overlay.
+   */
+  .nav-bottom {
+    bottom: 0;
+    padding-bottom: calc(max(env(safe-area-inset-bottom), 0.5rem) + var(--bottom-overlay));
   }
   .safe-top {
     padding-top: max(env(safe-area-inset-top), 0.5rem);
