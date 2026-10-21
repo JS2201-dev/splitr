@@ -1,3 +1,4 @@
+import { ShareSheet } from '@/components/ShareSheet'
 import { useState } from 'react'
 import { totalsByCategory } from '@/domain/balances'
 import { formatMinor } from '@/domain/money'
@@ -5,14 +6,14 @@ import { summariseAll } from '@/domain/summary'
 import { buildSettlement } from '@/domain/settlement'
 import type { PlanBundle } from '@/domain/types'
 import { formatDisplayDate } from '@/lib/id'
-import { downloadCsv, fullCsv, safeFilename } from '@/export/csv'
-import { buildShareText, shareText, whatsappShareUrl } from '@/export/share'
+import { buildShareText, whatsappShareUrl } from '@/export/share'
 import { useUiStore } from '@/store/useUiStore'
 import { Avatar, EmptyState, Money, cx } from '@/components/ui'
 
 export function SummaryTab({ bundle, onAdd }: { bundle: PlanBundle; onAdd: () => void }) {
   const { plan, people, categories, expenses, payments, auditLogs } = bundle
   const showToast = useUiStore((s) => s.showToast)
+  const [shareOpen, setShareOpen] = useState(false)
   const [showAudit, setShowAudit] = useState(false)
   const [busy, setBusy] = useState<string | null>(null)
 
@@ -37,22 +38,10 @@ export function SummaryTab({ bundle, onAdd }: { bundle: PlanBundle; onAdd: () =>
   const view = buildSettlement(people, expenses, payments, plan.settlementMode, plan.organizerId)
   const maxCategory = Math.max(...categoryTotals.map((c) => Math.abs(c.totalMinor)), 1)
 
-  async function handleShare() {
-    setBusy('share')
-    const text = buildShareText(bundle)
-    const result = await shareText(plan.name, text)
-    showToast(
-      result === 'shared'
-        ? 'Shared'
-        : result === 'copied'
-          ? 'Summary copied to clipboard'
-          : 'Could not share — try the WhatsApp button',
-    )
-    setBusy(null)
-  }
 
   return (
     <div className="space-y-5">
+      <ShareSheet open={shareOpen} onClose={() => setShareOpen(false)} bundle={bundle} />
       {/* Header — also the top of the printed page. */}
       <div className="card p-4">
         <div className="flex items-start justify-between gap-3">
@@ -91,7 +80,7 @@ export function SummaryTab({ bundle, onAdd }: { bundle: PlanBundle; onAdd: () =>
 
       {/* Export actions */}
       <div className="no-print grid grid-cols-2 gap-2">
-        <button onClick={handleShare} disabled={busy !== null} className="btn-primary !py-3 !text-sm">
+        <button onClick={() => setShareOpen(true)} disabled={busy !== null} className="btn-primary !py-3 !text-sm">
           {busy === 'share' ? 'Sharing…' : 'Share summary'}
         </button>
         <a
@@ -103,13 +92,19 @@ export function SummaryTab({ bundle, onAdd }: { bundle: PlanBundle; onAdd: () =>
           WhatsApp
         </a>
         <button
-          onClick={() => {
-            downloadCsv(safeFilename(plan.name, 'csv'), fullCsv(bundle))
-            showToast('CSV downloaded')
+          onClick={async () => {
+            setBusy('excel')
+            try {
+              const { downloadPlanExcel } = await import('@/export/excel')
+              downloadPlanExcel(bundle)
+              showToast('Excel file downloaded')
+            } catch { showToast('Could not build the Excel file') }
+            finally { setBusy(null) }
           }}
+          disabled={busy !== null}
           className="btn-secondary !py-3 !text-sm"
         >
-          Export CSV
+          {busy === 'excel' ? 'Building…' : 'Export Excel'}
         </button>
         <button
           onClick={async () => {
@@ -117,7 +112,7 @@ export function SummaryTab({ bundle, onAdd }: { bundle: PlanBundle; onAdd: () =>
             try {
               // jsPDF is ~400KB — fetched only when someone actually exports.
               const { downloadPlanPdf } = await import('@/export/pdf')
-              downloadPlanPdf(bundle)
+              await downloadPlanPdf(bundle)
               showToast('PDF downloaded')
             } catch (error) {
               console.error(error)

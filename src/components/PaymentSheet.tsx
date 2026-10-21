@@ -1,3 +1,4 @@
+import { buildGpayLink } from '@/integrations/gpay'
 import { useEffect, useMemo, useState } from 'react'
 import { currencySymbol, formatMinor, minorToDecimalString, parseAmountToMinor } from '@/domain/money'
 import { validatePayment } from '@/domain/validation'
@@ -43,6 +44,8 @@ export function PaymentSheet({
   const [method, setMethod] = useState<PaymentMethod>('upi')
   const [reference, setReference] = useState('')
   const [date, setDate] = useState(todayIso())
+  const [showQr, setShowQr] = useState(false)
+  const [qrError, setQrError] = useState(false)
   const [qr, setQr] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [attempted, setAttempted] = useState(false)
@@ -59,12 +62,13 @@ export function PaymentSheet({
     setAttempted(false)
     setSaving(false)
     setQr(null)
+    setShowQr(false)
   }, [open, obligation, plan.currency])
 
   const amountMinor = amountText.trim() ? parseAmountToMinor(amountText, plan.currency) : null
 
   const upiLink = useMemo(() => {
-    if (!to?.upiId || !amountMinor || amountMinor <= 0) return null
+    if (plan.currency.toUpperCase() !== 'INR' || !to?.upiId || !amountMinor || amountMinor <= 0) return null
     return buildUpiLink({
       payeeUpiId: to.upiId,
       payeeName: to.name,
@@ -74,16 +78,14 @@ export function PaymentSheet({
     })
   }, [to, amountMinor, plan.currency, plan.name])
 
-  // Only build the QR when the user asks for it — it is a canvas render and
-  // there is no reason to do it on every keystroke.
-  async function toggleQr() {
-    if (qr) {
-      setQr(null)
-      return
+  useEffect(() => {
+    let active = true
+    setQr(null); setQrError(false)
+    if (showQr && upiLink) {
+      buildUpiQr(upiLink).then((url) => { if (active) setQr(url) }).catch(() => { if (active) setQrError(true) })
     }
-    if (!upiLink) return
-    setQr(await buildUpiQr(upiLink, document.documentElement.classList.contains('dark')))
-  }
+    return () => { active = false }
+  }, [showQr, upiLink])
 
   const issues =
     obligation && amountMinor !== null
@@ -223,13 +225,14 @@ export function PaymentSheet({
               <span className="font-mono text-xs text-ink-500">{to.upiId}</span>
             </p>
             <div className="flex gap-2">
-              <a href={upiLink} className="btn-primary flex-1 !py-2.5 !text-sm">
-                Open UPI app
+              <a href={buildGpayLink(upiLink)} className="btn-primary flex-1 !py-2.5 !text-sm">
+                Open GPay
               </a>
-              <button onClick={toggleQr} className="btn-secondary !py-2.5 !text-sm">
-                {qr ? 'Hide QR' : 'Show QR'}
+              <button onClick={() => setShowQr(!showQr)} className="btn-secondary !py-2.5 !text-sm">
+                {showQr ? 'Hide QR' : 'Show QR'}
               </button>
             </div>
+            {showQr && !qr && <p role="status" className="mt-3 text-xs">{qrError ? 'Could not generate QR. Try again.' : 'Generating QR…'}</p>}
             {qr && (
               <img
                 src={qr}

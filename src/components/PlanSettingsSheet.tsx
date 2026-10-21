@@ -231,7 +231,7 @@ export function PlanSettingsSheet({
             <h3 className="font-bold">Backup &amp; restore</h3>
             <p className="mt-1 mb-3 text-xs leading-relaxed text-ink-500 dark:text-ink-400">
               Your data lives only on this device. Clearing browser data — or iOS evicting storage
-              from an app you haven't opened in a week — will erase it. CSV and PDF are reports and
+              from an app you haven't opened in a week — will erase it. Excel and PDF are reports and
               can't be loaded back; this file can.
             </p>
 

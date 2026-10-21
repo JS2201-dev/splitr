@@ -1,12 +1,6 @@
-/**
- * Feature flags for Phase 2 work.
- *
- * Everything here is OFF in Phase 1. The flags exist so the Phase 2 surfaces
- * can be merged incrementally behind a switch rather than on a long-lived
- * branch, and so the UI has a single honest place to answer "is this on yet?".
- *
- * Overridable at runtime via `localStorage.setItem('splitr.flags', '{"messageParsing":true}')`
- * for development, so a half-built feature can be exercised without a rebuild.
+/** Browser capture, tags, reconciliation and reminder drafts are enabled.
+ * Native, remote parsing and optional integrations stay disabled until configured.
+ * Runtime overrides: localStorage.setItem('splitr.flags', '{"messageParsing":false}')
  */
 export interface FeatureFlags {
   /** §3.1 — paste a UPI/bank SMS or email and extract an expense from it. */
@@ -32,13 +26,13 @@ export interface FeatureFlags {
 }
 
 export const DEFAULT_FLAGS: FeatureFlags = {
-  messageParsing: false,
-  tagConventions: false,
+  messageParsing: true,
+  tagConventions: true,
   llmParsing: false,
   nativeListeners: false,
   emailIngestion: false,
-  paymentReconciliation: false,
-  reminders: false,
+  paymentReconciliation: true,
+  reminders: true,
   receiptOcr: false,
   multiCurrency: false,
   splitwiseCompat: false,

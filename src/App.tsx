@@ -1,3 +1,5 @@
+import { isEnabled } from '@/integrations/flags'
+import { MessageCaptureSheet } from '@/components/MessageCaptureSheet'
 import { useEffect, useState } from 'react'
 import type { Expense } from '@/domain/types'
 import type { Obligation } from '@/domain/settlement'
@@ -34,6 +36,7 @@ export default function App() {
     editing?: Expense
     prefill?: ExpenseSheetPrefill
   }>({ open: false })
+  const [captureOpen, setCaptureOpen] = useState(false)
   const [quickAddOpen, setQuickAddOpen] = useState(false)
   const [peopleOpen, setPeopleOpen] = useState(false)
   const [categoriesOpen, setCategoriesOpen] = useState(false)
@@ -129,6 +132,10 @@ export default function App() {
               <>
                 <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
                 <div className="absolute right-0 z-20 mt-1 w-56 overflow-hidden rounded-xl border border-ink-200 bg-white shadow-xl dark:border-ink-800 dark:bg-ink-900">
+                  {isEnabled('messageParsing') && <MenuItem
+                    label="Capture SMS / email"
+                    onClick={() => { setMenuOpen(false); setCaptureOpen(true) }}
+                  />}
                   <MenuItem
                     label="Quick add expenses"
                     onClick={() => {
@@ -283,6 +290,11 @@ export default function App() {
             action: () => usePlanStore.getState().undoLastDelete(),
           })
         }}
+      />
+
+      <MessageCaptureSheet open={captureOpen} onClose={() => setCaptureOpen(false)} bundle={bundle}
+        onExpense={(prefill) => { setCaptureOpen(false); setExpenseSheet({ open: true, prefill }) }}
+        onPayment={async (input) => { await recordPayment(input); showToast('Payment recorded') }}
       />
 
       <QuickAddSheet

@@ -53,7 +53,7 @@ export interface ParsedExpenseCandidate {
 export interface ParseResult {
   provider: string
   candidate: ParsedExpenseCandidate | null
-  /** Overall 0–1 confidence. Drives the auto-save threshold. */
+  /** Overall 0–1 confidence. Controls review guidance; never enables auto-save. */
   confidence: number
   /** Why the parser is unsure, shown to the user on the confirm screen. */
   notes?: string[]

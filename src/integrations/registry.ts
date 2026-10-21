@@ -1,15 +1,9 @@
+import { localMessageParser } from './localParser'
 import { isEnabled } from './flags'
 import { CONFIDENCE_THRESHOLD, type MessageParser, type ParseContext, type ParseResult, type RawMessage } from './types'
 
-/**
- * Parser registry.
- *
- * Phase 1 ships this empty — no providers are registered, `parseMessage`
- * returns a null candidate, and the UI surface stays behind the
- * `messageParsing` flag. Phase 2 calls `registerParser` at startup and nothing
- * else changes.
- */
-const parsers: MessageParser[] = []
+/** Providers return review candidates only. The local provider works offline. */
+const parsers: MessageParser[] = [localMessageParser]
 
 export function registerParser(parser: MessageParser): void {
   if (parsers.some((p) => p.id === parser.id)) {
@@ -31,7 +25,7 @@ const EMPTY_RESULT: ParseResult = {
   provider: 'none',
   candidate: null,
   confidence: 0,
-  notes: ['Message parsing is a Phase 2 feature and is not enabled yet.'],
+  notes: ['No message parser is available.'],
 }
 
 /**

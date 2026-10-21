@@ -4,13 +4,13 @@ Mobile-first PWA for splitting group expenses on trips, outings and events.
 One person (the **Organizer/Collector**) tracks what everyone spent; the app
 works out who owes what and tracks payments until the whole thing is settled.
 
-**Phase 1 (MVP) is complete.** Phase 2 exists as interfaces and feature flags
-only — see [Phase 2 seam](#phase-2-seam).
+**Phase 1 is complete, with the first Phase 2 browser features implemented.**
+See [Phase 2 seam](#phase-2-seam) for supported flows and remaining integrations.
 
 ```bash
-npm install
+npm install      # Node 22.12+
 npm run dev      # http://localhost:5173
-npm test         # 150 tests
+npm test         # 186 tests
 npm run build
 ```
 
@@ -48,10 +48,10 @@ src/
 │   ├── useUiStore.ts         #   tab, theme, toasts
 │   └── __tests__/            #   11 end-to-end tests over the real store
 │
-├── integrations/             # Phase 2 seam — interfaces + flags, no impls
+├── integrations/             # message parsing, reconciliation, GPay + flags
 │   ├── types.ts              #   MessageParser, ParseResult, Reconciliation
 │   ├── registry.ts           #   provider registration + best-result merge
-│   └── flags.ts              #   feature flags, all OFF
+│   └── flags.ts              #   supported browser features ON
 │
 ├── export/
 │   ├── csv.ts                #   expenses / balances / settlement / payments
@@ -211,33 +211,60 @@ from the Settle-up tab.
 
 ## Phase 2 seam
 
-Everything in `src/integrations/` is **interfaces and flags only** — all flags
-default to `false`, `registry.ts` ships with no providers registered, and
-`parseMessage()` returns a null candidate until one is.
+The browser implementation includes:
 
-**A deliberate scoping note:** GPay, PhonePe and Paytm expose *no public API*
-for reading personal transactions. There is no honest way to pull payments
-automatically. So `MessageParser` is shaped around text the user already has —
-a pasted SMS, a consented notification forward, an email body. That is the
-feasible surface.
+- **GPay:** payment buttons use Android `intent://` with the package
+  `com.google.android.apps.nbu.paisa.user` and a Play Store fallback. iOS uses
+  `gpay://upi/pay`. QR codes and PDF payment links retain generic `upi://pay`
+  for any compatible UPI app. UPI is offered only for INR plans. WhatsApp
+  sharing is unchanged. Actual intent handling needs testing on a real Android
+  phone with GPay installed; a desktop browser cannot validate app launch.
+- **Excel:** Summary → Export Excel downloads a real `.xlsx` file with Balances,
+  Expenses, Settlement and Payments sheets. Money cells are numbers; user text
+  is stored as strings. Headers are frozen and filters are enabled.
+- **Message capture:** Menu → Capture SMS / email reads pasted text locally.
+  It extracts INR amounts, merchants, supported numeric/month-name dates and
+  payment direction. Merchant hints map Swiggy to Food and Uber to Travel.
+  `#food` selects a category; `@rahul @anu` selects split participants. The
+  current plan is always the destination; `#goa` does not switch plans.
+  Available balances are excluded, conflicting amounts stay blank, and
+  ambiguous names need manual review. Formats outside these heuristics need
+  correction. Review expense details opens the full editable expense form;
+  confirm the payer (initially the organizer), participants and date before saving.
+- **Reconciliation:** incoming credits suggest a pending balance only when the
+  sender matches one person by full name or UPI ID and the amount fits the
+  remaining balance. Partial payments are supported. The sender, recipient,
+  amount, date, method and reference remain editable. An already-recorded
+  reference blocks a duplicate. Messages without references still require
+  manual duplicate checking. Every payment requires explicit confirmation;
+  neither confidence nor returning from GPay marks anyone paid.
+- **Reminders:** each pending balance offers Copy reminder. This creates a
+  draft with the current remaining amount and, when available, a payment link.
+  The user pastes/sends it; nothing is sent automatically.
+- **QR sharing:** Summary → Share summary opens per-person QR cards with share
+  and download actions. Export PDF appends the same QR codes. Browser Print /
+  Save as PDF prints the current view and does not append QR pages.
 
-The contract carries per-field confidence and provenance spans, because the
-amount is usually certain while the payee rarely is. `CONFIDENCE_THRESHOLD`
-gates whether the confirm screen arrives pre-filled — but **the confirm screen
-is never skipped**. Nothing auto-saves.
-
-Flags can be flipped in dev without a rebuild:
+`messageParsing`, `tagConventions`, `paymentReconciliation` and `reminders`
+default to enabled. Other integration flags remain off. The parser registry
+includes the local provider. `CONFIDENCE_THRESHOLD` controls review guidance,
+never automatic saving. Runtime flags can be changed for development:
 
 ```js
 localStorage.setItem('splitr.flags', '{"messageParsing":true}')
+// Reload after changing an override.
 ```
+
+Implementation references:
+[Google Pay package targeting](https://developers.google.com/pay/india/api/android/in-app-payments),
+[Chrome intent syntax and fallback](https://developer.chrome.com/docs/android/intents).
 
 ---
 
 ## Testing
 
 ```
-150 tests across 9 files
+186 tests across 12 files
 
 domain/money         18   parsing, formatting, allocate() across group sizes
 domain/split         22   equal / exact / percent / shares, refunds, guards
@@ -246,8 +273,11 @@ domain/settlement    30   both modes, partial/over payments, acceptance invarian
 domain/validation    18   expense rules, duplicates, removal guards
 lib/quickAdd         20   the "Dinner | 2400 | Rahul" parser
 export/csv           12   escaping, formula injection, UPI link format
+export/backup        15   import validation and round-trip integrity
+export/excel          3   OOXML structure, numeric cells, reminder drafts
+integrations         10   message extraction, GPay URLs, reconciliation
 data/seed             7   demo data invariants
-store/usePlanStore   11   end-to-end: persistence, audit, undo, settling
+store/usePlanStore   19   end-to-end: persistence, audit, undo, settling
 ```
 
 Both acceptance criteria are asserted as invariants, re-checked after *every*
@@ -267,8 +297,9 @@ mutation in the store tests:
 - **The PDF says `INR 1,234.50`, not `₹1,234.50`.** jsPDF's built-in fonts are
   Latin-1 and have no U+20B9 glyph. Embedding a Unicode TTF costs ~300KB for one
   character — a bad trade in a mobile PWA. The on-screen UI uses ₹ throughout.
-- **CSV guards against formula injection.** Values starting `= + - @` are
-  prefixed with `'`, so a note can't execute when opened in Excel.
+- **Excel text stays text.** The `.xlsx` writer uses inline strings for user
+  content; formula-like expense names never become executable formulas.
+  CSV helpers are retained internally for compatibility, but the UI exports Excel.
 - **UPI deep links are one-way.** `upi://pay?pa=…&am=…&cu=INR&tn=…` opens the
   payer's app with everything pre-filled, but cannot confirm the payment
   happened. The UI says so, and settlement still needs a recorded payment.
@@ -276,8 +307,47 @@ mutation in the store tests:
 
 ---
 
-## Not built (Phase 2)
+## Remaining Phase 2 work
 
-Message/SMS parsing · tag conventions (`#goa #food @rahul`) · LLM extraction ·
-native notification listeners · email ingestion · payment reconciliation ·
-reminders · receipt OCR · multi-currency · Splitwise CSV import.
+- **Native wrapper and payment results:** no Capacitor/Android project exists
+  in this repository yet. Add an Android activity/plugin that launches a
+  package-targeted payment intent and returns the result for its original
+  obligation, amount and transaction ID. A browser return/focus event is not
+  proof of payment. Native success responses also need validation and duplicate
+  protection; do not treat arbitrary JavaScript events or query parameters as
+  verified payment results. TWA alone does not supply this bridge.
+- **Consent-gated SMS/notifications:** implement in that native wrapper with
+  explicit opt-in, revocation and platform permissions. Forward candidates
+  through the same mandatory review flow. No background listeners run today.
+- **LLM parser:** add a server proxy and provider credentials, plus authenticated
+  access/rate limits and user consent before transmitting pasted financial
+  messages. Never put the provider key in a `VITE_*` variable or browser bundle.
+  The existing `MessageParser` contract is the integration point. No remote
+  messages are sent and no LLM provider is configured today.
+- **Nice-to-haves:** receipt OCR, live FX rates with stored rate/date provenance,
+  and a validated Splitwise CSV import preview remain unimplemented. Automatic
+  email ingestion is also pending; pasted email text works now.
+
+Local verification: typecheck, 186 unit tests, production/PWA build, and browser
+review of capture and sharing flows. The generated workbook was independently
+opened with openpyxl and checked for numeric amounts, totals, filters and frozen
+headers. Deployments use the existing Netlify project and configuration. The production
+site is https://symphonious-wisp-49d823.netlify.app/.
+
+## Deployment readiness verification (21 October 2026)
+
+- Typecheck, all 186 tests and production/PWA build pass.
+- Production UI checked at 390 × 844: expenses, summary and settlement fit
+  without horizontal overflow.
+- A backup downloaded from the production UI was imported as a separate plan.
+  Expenses, payments, totals and the restore audit entry survived a reload.
+- With the preview server stopped, the app reloaded from its service-worker
+  cache and retained the restored plan. Settlement navigation remained usable.
+- The iOS GPay URL was corrected to the official `gpay://upi/pay?...` format;
+  Android retains its package-targeted `intent://` link.
+- `public/_headers` and `public/_redirects` make manual Netlify uploads retain
+  PWA update caching rules and SPA routing. Node 22 is pinned in `.nvmrc`;
+  the package requires Node 22.12 or newer.
+- Actual GPay app launch still needs verification on a real Android device.
+- Production deployment uses the connected `JS2201-dev/splitr` GitHub repository.
+  Netlify automatically builds and publishes updates to `main`.

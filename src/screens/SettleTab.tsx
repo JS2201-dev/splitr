@@ -1,3 +1,6 @@
+import { isEnabled } from '@/integrations/flags'
+import { buildReminderText } from '@/export/share'
+import { buildGpayLink } from '@/integrations/gpay'
 import { useMemo, useState } from 'react'
 import { formatMinor } from '@/domain/money'
 import { buildSettlement, type Obligation } from '@/domain/settlement'
@@ -252,7 +255,7 @@ function ObligationCard({
   const to = people.find((p) => p.id === obligation.toPersonId)
 
   const upiLink =
-    to?.upiId &&
+    plan.currency.toUpperCase() === 'INR' && to?.upiId &&
     buildUpiLink({
       payeeUpiId: to.upiId,
       payeeName: to.name,
@@ -299,13 +302,19 @@ function ObligationCard({
         </div>
       )}
 
-      <div className="mt-3 flex gap-2">
+      <div className="mt-3 flex gap-2 flex-wrap">
+        {isEnabled('reminders') && <button className="btn-secondary !py-2.5 !text-sm" onClick={async () => {
+          const text = buildReminderText(bundle, obligation.fromPersonId, obligation.toPersonId)
+          if (!text) return
+          try { await navigator.clipboard.writeText(text); useUiStore.getState().showToast('Reminder copied — paste it into your chat') }
+          catch { useUiStore.getState().showToast('Could not copy the reminder. Allow clipboard access and try again.') }
+        }}>Copy reminder</button>}
         <button onClick={onRecord} className="btn-primary flex-1 !py-2.5 !text-sm">
           Record payment
         </button>
         {upiLink && (
-          <a href={upiLink} className="btn-secondary !py-2.5 !text-sm">
-            Pay via UPI
+          <a href={buildGpayLink(upiLink)} className="btn-secondary !py-2.5 !text-sm">
+            Pay with GPay
           </a>
         )}
       </div>

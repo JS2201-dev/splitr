@@ -1,3 +1,4 @@
+import { buildUpiTargets, buildUpiQr } from './share'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { computeBalances } from '@/domain/balances'
@@ -240,6 +241,37 @@ function lastY(doc: jsPDF): number {
   return (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? 100
 }
 
-export function downloadPlanPdf(bundle: PlanBundle): void {
-  buildPlanPdf(bundle).save(safeFilename(bundle.plan.name, 'pdf'))
+export async function downloadPlanPdf(bundle: PlanBundle): Promise<void> {
+  const doc = buildPlanPdf(bundle)
+  const targets = buildUpiTargets(bundle)
+  // One compact QR card per pending person; generic UPI supports any payment app.
+  for (let i = 0; i < targets.length; i++) {
+    const target = targets[i]
+    if (i % 3 === 0) {
+      doc.addPage()
+      doc.setFontSize(16)
+      doc.setTextColor(...INK.heading)
+      doc.text('Payment QR codes', 40, 50)
+    }
+    const y = 85 + (i % 3) * 230
+    const from = bundle.people.find((p) => p.id === target.fromPersonId)?.name ?? '?'
+    doc.setFontSize(11)
+    doc.text(doc.splitTextToSize(`${from} pays ${target.toName}: ${pdfMoney(target.amountMinor, bundle.plan.currency)}`, 300), 220, y + 25)
+    doc.setFontSize(9)
+    doc.text(doc.splitTextToSize(target.toUpiId, 300), 220, y + 65)
+    doc.textWithLink('Pay with any UPI app', 220, y + 100, { url: target.link })
+    doc.addImage(await buildUpiQr(target.link), 'PNG', 40, y, 160, 160)
+  }
+  if (targets.length) {
+    const count = doc.getNumberOfPages()
+    for (let page = 1; page <= count; page++) {
+      doc.setPage(page)
+      doc.setFillColor(255, 255, 255)
+      doc.rect(0, doc.internal.pageSize.getHeight() - 38, doc.internal.pageSize.getWidth(), 38, 'F')
+      doc.setFontSize(8)
+      doc.setTextColor(...INK.muted)
+      doc.text(`Splitr · Page ${page} of ${count}`, 40, doc.internal.pageSize.getHeight() - 24)
+    }
+  }
+  doc.save(safeFilename(bundle.plan.name, 'pdf'))
 }

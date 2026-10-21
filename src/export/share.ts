@@ -86,7 +86,7 @@ export function buildUpiTargets(bundle: PlanBundle): UpiTarget[] {
   for (const obligation of view.obligations) {
     if (obligation.remainingMinor <= 0) continue
     const payee = people.find((p) => p.id === obligation.toPersonId)
-    if (!payee?.upiId) continue
+    if (!payee?.upiId || plan.currency.toUpperCase() !== 'INR') continue
 
     const note = `${plan.name} settle-up`
     targets.push({
@@ -126,6 +126,18 @@ export async function buildUpiQr(link: string, dark = false): Promise<string> {
 
 export function whatsappShareUrl(text: string): string {
   return `https://wa.me/?text=${encodeURIComponent(text)}`
+}
+
+/** A draft only: the caller decides when and where to send it. */
+export function buildReminderText(bundle: PlanBundle, fromId: string, toId: string): string | null {
+  const { plan, people, expenses, payments } = bundle
+  const obligation = buildSettlement(people, expenses, payments, plan.settlementMode, plan.organizerId).obligations
+    .find((o) => o.fromPersonId === fromId && o.toPersonId === toId && o.remainingMinor > 0)
+  if (!obligation) return null
+  const from = people.find((p) => p.id === fromId)!
+  const to = people.find((p) => p.id === toId)!
+  const target = buildUpiTargets(bundle).find((t) => t.fromPersonId === fromId && t.toPersonId === toId)
+  return `Hi ${from.name}, a reminder for ${plan.name}: ${formatMinor(obligation.remainingMinor, plan.currency)} is pending to ${to.name}. If you've already paid, please share the reference so we can update it. Thank you!${target ? `\nPay: ${target.link}` : ''}`
 }
 
 /**

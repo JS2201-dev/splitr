@@ -8,7 +8,7 @@ import {
 } from '@/domain/money'
 import { computeShares, SplitError } from '@/domain/split'
 import { hasBlockingIssues, validateExpense } from '@/domain/validation'
-import type { Expense, PlanBundle, SplitType } from '@/domain/types'
+import type { Expense, ExpenseSource, PlanBundle, SplitType } from '@/domain/types'
 import { suggestCategory } from '@/lib/quickAdd'
 import { todayIso } from '@/lib/id'
 import type { ExpenseInput } from '@/store/usePlanStore'
@@ -22,6 +22,7 @@ const SPLIT_OPTIONS: { value: SplitType; label: string; hint: string }[] = [
 ]
 
 export interface ExpenseSheetPrefill {
+  source?: ExpenseSource
   name?: string
   amountMinor?: number | null
   categoryId?: string
@@ -231,6 +232,7 @@ export function ExpenseSheet({
         splitType,
         participants,
         payers,
+        source: editing?.source ?? prefill?.source,
       })
       onClose()
     } catch (error) {
